@@ -1,0 +1,22 @@
+services:
+  backend:
+    build: ./backend
+    image: biplob798/hr-backend:1.0
+    environment:
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    image: biplob798/hr-frontend:1.0
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
