@@ -382,3 +382,96 @@ Step 4: Check and open the site
 sleep 10 && docker compose logs --tail 10 backend
 
 http://192.168.0.201/
+
+==========================================================
+
+ YOUR WINDOWS PC (VS Code)                       GITHUB
+┌──────────────────────────┐   git push    ┌────────────────────┐
+│ hr-manager/              │ ────────────► │ your repository    │
+│  ├─ backend/             │               │  (all the code)    │
+│  ├─ frontend/            │               └─────────┬──────────┘
+│  └─ docker-compose.yml   │                         │ git clone / git pull
+└──────────────────────────┘             ┌───────────┴────────────┐
+                                         ▼                        ▼
+        ┌──────────────────────────────────┐   ┌──────────────────────────────────┐
+        │ UBUNTU  192.168.0.219            │   │ RHEL  192.168.0.201              │
+        │ (frontend server)                │   │ (backend + database server)      │
+        │                                  │   │                                  │
+        │  Docker container:               │   │  Docker container:               │
+        │  ┌────────────────────────┐      │   │  ┌────────────────────────┐      │
+        │  │ frontend               │      │   │  │ backend (Node.js)      │      │
+        │  │ nginx + React   :80    │──────┼───┼─►│ port 3000              │      │
+        │  └────────────────────────┘ /api │   │  └───────────┬────────────┘      │
+        │                                  │   │              │ host.docker.      │
+        │  built from frontend/Dockerfile  │   │              ▼ internal:5432     │
+        │                                  │   │  ┌────────────────────────┐      │
+        │                                  │   │  │ PostgreSQL 16          │      │
+        │                                  │   │  │ (installed on RHEL)    │      │
+        │                                  │   │  │ db: hrdb   user: hr    │      │
+        │                                  │   │  └────────────────────────┘      │
+        │                                  │   │  built from backend/Dockerfile   │
+        └──────────────────────────────────┘   └──────────────────────────────────┘
+                     ▲
+                     │ http://192.168.0.219/
+                 YOUR BROWSER
+
+
+How a request flows
+You open http://192.168.0.219/ in the browser.
+nginx on Ubuntu serves the React page.
+When the page needs data, it calls /api/.... nginx forwards that to 192.168.0.201:3000.
+The backend on RHEL reads or writes PostgreSQL and sends the result back.
+
+
+
+==================================================
+Network Issue solve
+==================================================
+
+
+On RHEL (201), the root tab
+
+1. Is the backend listening on port 3000?
+
+
+ss -tlnp | grep 3000
+
+curl http://localhost:3000/api/health
+
+
+It must print {"status":"ok"}. If not, the problem is the backend or the database, not the network.
+
+3. Open the firewall for the Ubuntu machine:
+
+
+firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="192.168.0.219" port port="3000" protocol="tcp" accept'
+
+firewall-cmd --reload
+
+firewall-cmd --list-rich-rules
+
+firewall-cmd --add-port=3000/tcp
+
+
+On Ubuntu (219)
+
+4. Test the connection again:
+
+curl http://192.168.0.201:3000/api/health
+
+
+
+
+Workflow, step by step
+#	Where	What to do
+1	Windows (VS Code)	Make sure nginx.conf has proxy_pass http://192.168.0.201:3000; and docker-compose.yml has ports: "3000:3000" under backend. Then git add -A, git commit, git push.
+2	RHEL 201	Go to the project folder, run docker compose down, then edit or pull docker-compose.yml so the backend has ports: "3000:3000". Check .env has the DB_* values.
+3	RHEL 201	docker compose up -d --build --no-deps backend, then check the logs show Database ready.
+4	RHEL 201 (root)	Open the firewall for Ubuntu: port 3000, source 192.168.0.219. Then curl http://localhost:3000/api/health must print {"status":"ok"}.
+5	Ubuntu 219	curl http://192.168.0.201:3000/api/health must also print {"status":"ok"}. This proves the two servers can talk.
+6	Ubuntu 219	docker compose up -d --build --no-deps frontend in the project folder.
+7	Browser	Open http://192.168.0.219/ and press Ctrl+F5.
+Where you are now
+Ubuntu: repo cloned, Docker installed. ✔
+RHEL: steps 2 to 4 are next. The backend must run there with port 3000 open.
+Then steps 5 to 7.
