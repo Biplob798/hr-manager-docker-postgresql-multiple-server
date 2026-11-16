@@ -1,7 +1,8 @@
 services:
   backend:
     build: ./backend
-    image: biplob798/hr-backend:1.0
+    ports:
+      - "3000:3000"
     environment:
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
@@ -14,7 +15,6 @@ services:
 
   frontend:
     build: ./frontend
-    image: biplob798/hr-frontend:1.0
     ports:
       - "80:80"
     depends_on:
