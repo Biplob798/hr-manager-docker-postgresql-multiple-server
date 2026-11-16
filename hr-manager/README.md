@@ -475,3 +475,32 @@ Where you are now
 Ubuntu: repo cloned, Docker installed. ✔
 RHEL: steps 2 to 4 are next. The backend must run there with port 3000 open.
 Then steps 5 to 7.
+
+
+
+http://192.168.0.219/
+
+
+
+hr-manager-docker-postgresql-multiple-server/
+└── hr-manager/
+    ├── docker-compose.yml   ← here
+    ├── backend/
+    ├── frontend/
+    ├── .env
+    └── README.md
+
+
+
+Item	Ubuntu 219 (frontend)	RHEL 201 (backend)
+docker-compose.yml	needed	needed
+frontend/	needed	not used
+backend/	not used	needed
+.env	not needed	needed (the DB_* settings)
+README.md	not needed	not needed
+
+A full git clone on each machine is the easiest way. It brings everything, and the unused parts just sit there. That’s what you have on Ubuntu (a full clone) and on RHEL (the old project folder with both parts).
+
+The two things that matter on each machine
+Ubuntu: docker-compose.yml and frontend/ must be there, and frontend/nginx.conf must say proxy_pass http://192.168.0.201:3000;.
+RHEL: docker-compose.yml must have ports: - "3000:3000" under backend, and .env must exist with the database values (.env isn’t in GitHub, so you create it on that machine).
